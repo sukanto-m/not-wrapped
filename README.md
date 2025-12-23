@@ -94,6 +94,8 @@ This is a **data diary**, not a marketing artifact.
 - Plain CSS (no Tailwind, no CSS frameworks)
 - Pure client-side analytics (no backend required)
 - Optional local LLM via Ollama (`llama3`, `llama3.2`, etc.)
+- SVG-based visuals (no charting libraries)
+- Optional PNG export via html-to-image
 
 ---
 
