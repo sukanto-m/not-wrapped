@@ -28,7 +28,23 @@ This project treats your listening history as **personal data, not a product**. 
 - Which artists stay with you over months, not minutes?
 - When do you explore — and when do you retreat?
 
-The goal isn’t to summarize your taste.  
+Visualizations (quirky add-on)
+
+Night Owl Radar: listening minutes by hour (spot your “I should sleep” patterns)
+
+- Monthly Pulse: minutes by month (your year’s rhythm)
+
+- Loop Monsters: tracks with the highest same-day repeats
+
+- Then vs Now: compare early-year vs end-year top artists with a slider
+
+- Mood Map (Calm vs Chaos): a genre-agnostic proxy using play duration + repetition
+
+- Export PNG: one-click download of the full visualization section (local-only)
+
+![viz-image](not-wrapped-2025-12-23.png)
+
+- The goal isn’t to summarize your taste.  
 It’s to **notice its behavior**.
 
 Not-Wrapped is intentionally local-first, minimal, and unshareable by default. It’s closer to a data diary than a dashboard — something you look at to understand yourself, not to perform yourself.
