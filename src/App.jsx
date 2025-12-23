@@ -1,6 +1,9 @@
 import { useMemo, useState } from "react";
 import { computeNotWrapped, parseSpotifyStreamingHistory } from "./lib/wrapped";
+import { computeViz } from "./lib/viz";
 import { llamaCommentary } from "./lib/llama";
+import MiniBarChart from "./components/MiniBarChart";
+import LoopMonsters from "./components/LoopMonsters";
 import "./index.css";
 
 function StatCard({ label, value, sub }) {
@@ -45,6 +48,7 @@ export default function App() {
   const [fileName, setFileName] = useState("");
   const [minSec, setMinSec] = useState(30);
 
+  // Local Llama (Ollama)
   const [model, setModel] = useState("llama3.2");
   const [aiText, setAiText] = useState("");
   const [aiBusy, setAiBusy] = useState(false);
@@ -53,18 +57,25 @@ export default function App() {
   async function onPickFile(e) {
     const f = e.target.files?.[0];
     if (!f) return;
+
     setFileName(f.name);
+    setAiText("");
+    setAiErr("");
+
     const text = await f.text();
     const json = JSON.parse(text);
     const parsed = parseSpotifyStreamingHistory(json);
     setRawRows(parsed);
-    setAiText("");
-    setAiErr("");
   }
 
   const report = useMemo(() => {
     if (!rawRows) return null;
     return computeNotWrapped(rawRows, Math.max(0, Math.floor(minSec * 1000)));
+  }, [rawRows, minSec]);
+
+  const viz = useMemo(() => {
+    if (!rawRows) return null;
+    return computeViz(rawRows, Math.max(0, Math.floor(minSec * 1000)));
   }, [rawRows, minSec]);
 
   async function onGenerateAI() {
@@ -103,25 +114,49 @@ export default function App() {
             </div>
 
             <div className="p">
-              Upload your Spotify streaming history JSON. We compute loops, binge days, night-owl stats, and
-              optionally ask local Llama to narrate your musical personality.
+              Upload your Spotify streaming history JSON. We compute loops, binge days, night-owl stats,
+              and optionally ask local Llama to narrate your musical personality.
             </div>
           </div>
 
           <div className="card">
             <div className="label">Upload JSON</div>
             <div className="row" style={{ justifyContent: "flex-start" }}>
-              <input className="fileInput" type="file" accept=".json,application/json" onChange={onPickFile} />
+              <input
+                className="fileInput"
+                type="file"
+                accept=".json,application/json"
+                onChange={onPickFile}
+              />
             </div>
 
             <div className="row">
-              <div className="label" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              <div
+                className="label"
+                style={{
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  maxWidth: "55%",
+                }}
+                title={fileName}
+              >
                 {fileName || "No file yet."}
               </div>
+
               <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                 <span className="label">Min play</span>
-                <input className="range" type="range" min="0" max="60" value={minSec} onChange={(e) => setMinSec(Number(e.target.value))} />
-                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.85)" }}>{minSec}s</span>
+                <input
+                  className="range"
+                  type="range"
+                  min="0"
+                  max="60"
+                  value={minSec}
+                  onChange={(e) => setMinSec(Number(e.target.value))}
+                />
+                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.85)" }}>
+                  {minSec}s
+                </span>
               </div>
             </div>
 
@@ -135,7 +170,10 @@ export default function App() {
                 style={{ minHeight: 0, height: 36, padding: "8px 10px" }}
               />
             </div>
-            <div className="small">Tip: run <b>ollama serve</b>. Model example: <b>llama3.2</b>, <b>llama3</b>.</div>
+
+            <div className="small">
+              Tip: run <b>ollama serve</b>. Model example: <b>llama3.2</b>, <b>llama3</b>.
+            </div>
           </div>
         </div>
 
@@ -144,50 +182,116 @@ export default function App() {
             Upload your JSON to begin. Bonus points if you don’t flinch at the 3–4 AM section.
           </div>
         ) : !report.ok ? (
-          <div className="card" style={{ marginTop: 18, borderColor: "rgba(239,68,68,0.35)", background: "rgba(239,68,68,0.10)" }}>
+          <div
+            className="card"
+            style={{
+              marginTop: 18,
+              borderColor: "rgba(239,68,68,0.35)",
+              background: "rgba(239,68,68,0.10)",
+            }}
+          >
             {report.error}
           </div>
         ) : (
           <>
             <div className="statsGrid">
-              <StatCard label="Listening time" value={`${report.totals.hours.toFixed(1)} hrs`} sub={`${report.totals.minutes.toFixed(0)} minutes`} />
+              <StatCard
+                label="Listening time"
+                value={`${report.totals.hours.toFixed(1)} hrs`}
+                sub={`${report.totals.minutes.toFixed(0)} minutes`}
+              />
               <StatCard label="Days active" value={`${report.totals.daysActive}`} sub="Days with ≥ threshold plays" />
               <StatCard label="Unique artists" value={`${report.totals.uniqueArtists}`} sub="Your musical multiverse" />
-              <StatCard label="Night share" value={`${(report.totals.nightShare * 100).toFixed(1)}%`} sub="00:00–05:59 listening" />
+              <StatCard
+                label="Night share"
+                value={`${(report.totals.nightShare * 100).toFixed(1)}%`}
+                sub="00:00–05:59 listening"
+              />
             </div>
 
             <div className="card" style={{ marginTop: 12 }}>
               <div className="sectionTitle">Highlights</div>
               <div className="statsGrid" style={{ gridTemplateColumns: "repeat(4, 1fr)", marginTop: 12 }}>
-                <StatCard label="Peak hour" value={`${report.highlights.peakHour.hour}:00`} sub={`${report.highlights.peakHour.minutes.toFixed(0)} min total`} />
-                <StatCard label="Most diverse day" value={report.highlights.mostDiverseDay.date} sub={`${report.highlights.mostDiverseDay.uniqueArtists} artists`} />
-                <StatCard label="Biggest binge" value={report.highlights.biggestArtistBinge.artist} sub={`${report.highlights.biggestArtistBinge.minutes.toFixed(1)} min on ${report.highlights.biggestArtistBinge.date}`} />
-                <StatCard label="Max loop" value={`${report.highlights.maxLoop.plays} plays`} sub={`${report.highlights.maxLoop.trackKey} (${report.highlights.maxLoop.date})`} />
+                <StatCard
+                  label="Peak hour"
+                  value={`${report.highlights.peakHour.hour}:00`}
+                  sub={`${report.highlights.peakHour.minutes.toFixed(0)} min total`}
+                />
+                <StatCard
+                  label="Most diverse day"
+                  value={report.highlights.mostDiverseDay.date}
+                  sub={`${report.highlights.mostDiverseDay.uniqueArtists} artists`}
+                />
+                <StatCard
+                  label="Biggest binge"
+                  value={report.highlights.biggestArtistBinge.artist}
+                  sub={`${report.highlights.biggestArtistBinge.minutes.toFixed(1)} min on ${report.highlights.biggestArtistBinge.date}`}
+                />
+                <StatCard
+                  label="Max loop"
+                  value={`${report.highlights.maxLoop.plays} plays`}
+                  sub={`${report.highlights.maxLoop.trackKey} (${report.highlights.maxLoop.date})`}
+                />
               </div>
+
               <div className="small" style={{ marginTop: 10 }}>
                 Micro-skips (&lt;10s): {(report.highlights.microSkipRate * 100).toFixed(1)}% of entries.
               </div>
             </div>
 
-            <div className="twoCol">
+            <div className="twoCol" style={{ marginTop: 12 }}>
               <BarList title="Top Artists" items={report.topArtists} />
               <BarList title="Top Tracks" items={report.topTracks} />
             </div>
 
+            {/* Quirky Visualizations */}
+            {viz ? (
+              <div className="twoCol" style={{ marginTop: 12 }}>
+                <div className="card">
+                  <div className="sectionTitle">Night Owl Radar 🌙</div>
+                  <div className="small" style={{ marginTop: 6 }}>
+                    Minutes by hour. If 3–4 AM is your peak, we already know you’re plotting something.
+                  </div>
+                  <MiniBarChart data={viz.hourlyMinutes} labelKey="hour" valueKey="minutes" />
+                </div>
+
+                <div className="card">
+                  <div className="sectionTitle">Monthly Pulse 📅</div>
+                  <div className="small" style={{ marginTop: 6 }}>
+                    Minutes by month. Your year’s rhythm in one glance.
+                  </div>
+                  <MiniBarChart data={viz.monthlyMinutes} labelKey="month" valueKey="minutes" />
+                </div>
+
+                <LoopMonsters items={viz.loopMonsters} />
+              </div>
+            ) : null}
+
+            {/* AI Commentary */}
             <div className="card" style={{ marginTop: 12 }}>
               <div className="sectionTitle">AI Commentary (local)</div>
               <div className="small" style={{ marginTop: 8 }}>
-                Generates a tagline + short personality read + 3 “awards” using your computed stats. Runs on your machine via Ollama.
+                Generates a tagline + short personality read + 3 “awards” using your computed stats. Runs locally via Ollama.
               </div>
 
               <div style={{ display: "flex", gap: 10, marginTop: 12, alignItems: "center" }}>
                 <button className="btn" onClick={onGenerateAI} disabled={aiBusy}>
                   {aiBusy ? "Summoning Llama..." : "Generate AI commentary"}
                 </button>
-                {aiErr ? <span className="small" style={{ color: "rgba(248,113,113,0.95)" }}>{aiErr}</span> : null}
+                {aiErr ? (
+                  <span className="small" style={{ color: "rgba(248,113,113,0.95)" }}>
+                    {aiErr}
+                  </span>
+                ) : null}
               </div>
 
-              <textarea className="textarea" readOnly value={aiText} style={{ marginTop: 12 }} placeholder="AI output will appear here..." />
+              <textarea
+                className="textarea"
+                readOnly
+                value={aiText}
+                style={{ marginTop: 12 }}
+                placeholder="AI output will appear here..."
+              />
             </div>
 
             <div className="footer">No ads. No guilt. Just patterns.</div>
