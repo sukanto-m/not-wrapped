@@ -1,6 +1,8 @@
 # Not-Wrapped 🎧  
 *A personal, local-first Spotify Wrapped — without the horoscope.*
 
+![app-screenshot](not-wrapped.png)
+
 Not-Wrapped is a minimal React app that turns your Spotify streaming history into something more honest than the official Wrapped.
 
 No ads.  
