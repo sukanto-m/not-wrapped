@@ -1,9 +1,12 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { computeNotWrapped, parseSpotifyStreamingHistory } from "./lib/wrapped";
 import { computeViz } from "./lib/viz";
 import { llamaCommentary } from "./lib/llama";
 import MiniBarChart from "./components/MiniBarChart";
 import LoopMonsters from "./components/LoopMonsters";
+import ThenNow from "./components/ThenNow";
+import MoodMap from "./components/MoodMap";
+import ExportPNG from "./components/ExportPNG";
 import "./index.css";
 
 function StatCard({ label, value, sub }) {
@@ -54,6 +57,9 @@ export default function App() {
   const [aiBusy, setAiBusy] = useState(false);
   const [aiErr, setAiErr] = useState("");
 
+  // For PNG export (viz section only)
+  const vizRef = useRef(null);
+
   async function onPickFile(e) {
     const f = e.target.files?.[0];
     if (!f) return;
@@ -68,15 +74,17 @@ export default function App() {
     setRawRows(parsed);
   }
 
+  const minMs = useMemo(() => Math.max(0, Math.floor(minSec * 1000)), [minSec]);
+
   const report = useMemo(() => {
     if (!rawRows) return null;
-    return computeNotWrapped(rawRows, Math.max(0, Math.floor(minSec * 1000)));
-  }, [rawRows, minSec]);
+    return computeNotWrapped(rawRows, minMs);
+  }, [rawRows, minMs]);
 
   const viz = useMemo(() => {
     if (!rawRows) return null;
-    return computeViz(rawRows, Math.max(0, Math.floor(minSec * 1000)));
-  }, [rawRows, minSec]);
+    return computeViz(rawRows, minMs);
+  }, [rawRows, minMs]);
 
   async function onGenerateAI() {
     if (!report?.ok) return;
@@ -114,7 +122,7 @@ export default function App() {
             </div>
 
             <div className="p">
-              Upload your Spotify streaming history JSON. We compute loops, binge days, night-owl stats,
+              Upload your Spotify streaming history JSON. We compute loops, binge days, night-owl stats, quirky visuals,
               and optionally ask local Llama to narrate your musical personality.
             </div>
           </div>
@@ -244,26 +252,56 @@ export default function App() {
               <BarList title="Top Tracks" items={report.topTracks} />
             </div>
 
-            {/* Quirky Visualizations */}
-            {viz ? (
-              <div className="twoCol" style={{ marginTop: 12 }}>
-                <div className="card">
-                  <div className="sectionTitle">Night Owl Radar 🌙</div>
-                  <div className="small" style={{ marginTop: 6 }}>
-                    Minutes by hour. If 3–4 AM is your peak, we already know you’re plotting something.
-                  </div>
-                  <MiniBarChart data={viz.hourlyMinutes} labelKey="hour" valueKey="minutes" />
+            {/* Visualizations block (exportable) */}
+            {rawRows ? (
+              <div style={{ marginTop: 12 }}>
+                <div className="row">
+                  <div className="sectionTitle">Visualizations</div>
+                  <ExportPNG targetRef={vizRef} fileBase="not-wrapped" />
                 </div>
 
-                <div className="card">
-                  <div className="sectionTitle">Monthly Pulse 📅</div>
-                  <div className="small" style={{ marginTop: 6 }}>
-                    Minutes by month. Your year’s rhythm in one glance.
-                  </div>
-                  <MiniBarChart data={viz.monthlyMinutes} labelKey="month" valueKey="minutes" />
+                <div
+                  ref={vizRef}
+                  style={{
+                    marginTop: 12,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 12,
+                  }}
+                >
+                  {/* Existing charts */}
+                  {viz ? (
+                    <div className="twoCol">
+                      <div className="card">
+                        <div className="sectionTitle">Night Owl Radar 🌙</div>
+                        <div className="small" style={{ marginTop: 6 }}>
+                          Minutes by hour. If 3–4 AM is your peak, we already know you’re plotting something.
+                        </div>
+                        <MiniBarChart data={viz.hourlyMinutes} labelKey="hour" valueKey="minutes" />
+                      </div>
+
+                      <div className="card">
+                        <div className="sectionTitle">Monthly Pulse 📅</div>
+                        <div className="small" style={{ marginTop: 6 }}>
+                          Minutes by month. Your year’s rhythm in one glance.
+                        </div>
+                        <MiniBarChart data={viz.monthlyMinutes} labelKey="month" valueKey="minutes" />
+                      </div>
+
+                      <LoopMonsters items={viz.loopMonsters} />
+                    </div>
+                  ) : null}
+
+                  {/* New: Then vs Now */}
+                  <ThenNow rows={rawRows} minMs={minMs} />
+
+                  {/* New: Mood map */}
+                  <MoodMap rows={rawRows} minMs={minMs} />
                 </div>
 
-                <LoopMonsters items={viz.loopMonsters} />
+                <div className="small" style={{ marginTop: 8 }}>
+                  Export captures the visuals section as a PNG (local-only).
+                </div>
               </div>
             ) : null}
 
