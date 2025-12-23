@@ -1,0 +1,18 @@
+# Node / React
+node_modules/
+dist/
+.vite/
+
+# OS / Editor
+.DS_Store
+.idea/
+.vscode/
+
+# Environment
+.env
+.env.local
+
+# Spotify personal data (DO NOT COMMIT)
+StreamingHistory_music_*.json
+StreamingHistory*.json
+spotify-data/
